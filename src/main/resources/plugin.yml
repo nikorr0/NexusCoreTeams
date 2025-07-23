@@ -1,0 +1,20 @@
+name: NexusCoreTeams
+version: '1.0.0'
+main: io.github.nikorr0.nexusCoreTeams.NexusCoreTeams
+api-version: '1.17'
+authors: [ nikorr0 ]
+description: NexusCoreTeams is a plugin that gives each team a single, HP-tracked Nexus. Players damage enemy Nexuses by breaking the block, with a UI showing real-time health. Once a Nexus falls, that team’s members lose respawns and switch to spectator mode on next death.
+
+commands:
+  nexus:
+    description: Nexus management
+    usage: |
+      /nexus set <team> <amount>
+      /nexus hp <team> <amount>
+      /nexus info <team>
+      /nexus clear
+      /nexus clear <team>
+      /nexus enable
+      /nexus disable
+      /nexus reload
+    permission: nexusteams.admin
