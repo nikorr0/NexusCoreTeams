@@ -3,7 +3,11 @@ package io.github.nikorr0.nexusCoreTeams.listeners;
 import io.github.nikorr0.nexusCoreTeams.NexusManager;
 import io.github.nikorr0.nexusCoreTeams.TeamData;
 
+import net.md_5.bungee.api.ChatMessageType;
+import net.md_5.bungee.api.chat.TextComponent;
 import org.bukkit.Sound;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.entity.AbstractArrow;
 import org.bukkit.entity.EnderCrystal;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
@@ -14,9 +18,11 @@ import org.bukkit.event.entity.EntityDamageEvent;
 
 public class CrystalDamageListener implements Listener {
 
-    private final NexusManager manager;
+    private static NexusManager manager;
+
+
     public CrystalDamageListener(NexusManager manager) {
-        this.manager = manager;
+        CrystalDamageListener.manager = manager;
     }
 
     @EventHandler(priority = EventPriority.LOWEST, ignoreCancelled = false)
@@ -48,7 +54,7 @@ public class CrystalDamageListener implements Listener {
         // Counting how much time has passed since the last strike
         double now = System.currentTimeMillis();
         double since = now - td.getLastHitMs();
-        double cooldown = manager.getHitCooldownMs();
+        double cooldown = manager.getPlugin().config().getHitCooldownSeconds();
 
         if (since < cooldown) {
             double remainingMs = cooldown - since;
@@ -62,8 +68,8 @@ public class CrystalDamageListener implements Listener {
             // If it's still in the cooldown, we'll notify the attacker in the ActionBar.
             if (e.getDamager() instanceof Player p) {
                 p.spigot().sendMessage(
-                        net.md_5.bungee.api.ChatMessageType.ACTION_BAR,
-                        new net.md_5.bungee.api.chat.TextComponent("§7The cooldown will expire in "
+                        ChatMessageType.ACTION_BAR,
+                        new TextComponent("§7The cooldown will expire in "
                                 + remSecStr + " seconds")
                 );
             }
@@ -72,8 +78,30 @@ public class CrystalDamageListener implements Listener {
         }
 
         if (td.getCrystalUuid().equals(crystal.getUniqueId())) {
+            int damage;
             e.setCancelled(true); // blocking vanilla explosion/breaking
-            manager.damageNexus(td.getTeamName(), 1);
+
+            if (e.getDamager() instanceof Player player) {
+                if (manager.getPlugin().config().getWeaponDamageEnabled()) {
+                    Double damageDouble = player.getAttribute(Attribute.GENERIC_ATTACK_DAMAGE).getValue();
+                    damage = damageDouble == null ? 1 : Math.toIntExact(Math.round(damageDouble));
+                }
+                else {
+                    damage = 1;
+                }
+            }
+
+            else if (manager.getPlugin().config().getArrowDamageEnabled() &&
+                    e.getDamager() instanceof AbstractArrow arrow) {
+                Double damageDouble = arrow.getDamage();
+                damage = damageDouble == null ? 1 : Math.toIntExact(Math.round(damageDouble));
+            }
+
+            else {
+                return;
+            }
+
+            manager.damageNexus(td.getTeamName(), damage);
 
             // if HP <= 0 - we break the crystal
             // with explosion and sound
