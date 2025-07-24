@@ -10,11 +10,13 @@ public final class NexusCoreTeams extends JavaPlugin {
     private boolean active;
     private NexusManager nexusManager;
     private TabUpdater  tabUpdater;
+    private ConfigManager configManager;
 
     @Override
     public void onEnable() {
         saveDefaultConfig();
         active = getConfig().getBoolean("enabled", true);
+        configManager = new ConfigManager(this);
 
         getServer().getMessenger().registerOutgoingPluginChannel(this, "BungeeCord");
 
@@ -52,10 +54,14 @@ public final class NexusCoreTeams extends JavaPlugin {
 
     public void reloadPluginConfig(CommandSender trigger) {
         reloadConfig();
-        nexusManager.refreshConfig();
+        configManager.reload();
 
         trigger.sendMessage("§aNexusCoreTeams: the config has been reloaded.");
         getLogger().info(trigger.getName() + " reloaded config.");
+    }
+
+    public ConfigManager config() {
+        return configManager;
     }
 
     public NexusManager getNexusManager() {
