@@ -8,7 +8,7 @@ public class TeamData {
 
     private final String teamName;
     private final Location nexusLocation;
-    private final int maxHealth;
+    private int maxHealth;
     private int health;
     private boolean alive;
     private UUID crystalUuid;
@@ -36,6 +36,7 @@ public class TeamData {
     public int getMaxHealth() { return maxHealth; }
     public int getHealth() { return health; }
     public void setHealth(int health) { this.health = health; }
+    public void setMaxHealth(int maxHealth) { this.maxHealth = maxHealth; }
     public boolean isAlive() { return alive; }
     public void setAlive(boolean alive) { this.alive = alive; }
 
