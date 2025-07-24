@@ -79,9 +79,11 @@ public class NexusCommand implements CommandExecutor, TabCompleter {
         try{
             hp = (args.length >= 3)
                     ? Integer.parseInt(args[2])
-                    : manager.getPlugin()
-                    .getConfig()
-                    .getInt("default-nexus-hp", 10);
+                    : manager.getPlugin().config().getDefaultNexusHp();
+
+            if (hp <= 0) {
+                throw new IllegalArgumentException("Invalid input provided.");
+            }
         } catch (Throwable t) {
             sender.sendMessage("§cWrong value of HP.");
             return false;
@@ -90,7 +92,7 @@ public class NexusCommand implements CommandExecutor, TabCompleter {
         Location loc = p.getLocation().getBlock().getLocation();
         manager.registerNexus(team, loc, hp);
 
-        sender.sendMessage("§aThe §e" + team + " §ateam Nexus has been registered. HP = " + hp);
+        sender.sendMessage("§aThe §e" + team + " §ateam's Nexus has been registered. HP = " + hp);
         return true;
     }
 
@@ -102,6 +104,10 @@ public class NexusCommand implements CommandExecutor, TabCompleter {
 
         try{
             hp = Integer.parseInt(args[2]);
+
+            if (hp <= 0) {
+                throw new IllegalArgumentException("Invalid input provided.");
+            }
         } catch (Throwable t) {
             sender.sendMessage("§cWrong value of HP.");
             return false;
@@ -113,8 +119,9 @@ public class NexusCommand implements CommandExecutor, TabCompleter {
             return true;
         }
         td.setHealth(hp);
+        td.setMaxHealth(hp);
         manager.saveAll();
-        sender.sendMessage("§aThe §e" + team + " §ateam Nexus HP set to " + hp);
+        sender.sendMessage("§aThe §e" + team + " §ateam's Nexus HP set to " + hp);
         return true;
     }
 
@@ -155,7 +162,7 @@ public class NexusCommand implements CommandExecutor, TabCompleter {
         String team = args[1];
         if (manager.clearTeam(team)) {
             plugin.getTabUpdater().updateNow();
-            sender.sendMessage("§cThe §6" + team + " §cteam Nexus has been destroyed.");
+            sender.sendMessage("§cThe §e" + team + " §cteam's Nexus has been cleared.");
         } else {
             sender.sendMessage("§cThe §e" + team + " §cteam doesn't have a registered Nexus.");
         }
@@ -214,7 +221,7 @@ public class NexusCommand implements CommandExecutor, TabCompleter {
 
         // third argument
         if (sub.equals("set") && args.length == 3) {
-            return List.of(String.valueOf(plugin.getConfig().getInt("default-nexus-hp", 30)));
+            return List.of(String.valueOf(plugin.config().getDefaultNexusHp()));
         }
 
         // for /nexus hp <team> <value>
