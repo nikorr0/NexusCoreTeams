@@ -2,12 +2,21 @@
 enabled: true
 
 # The HP that will be assigned to the nexus
-# if the admin did not specify the number with the </nexus set> command
+# if the user did not specify the value with the </nexus set> command
 default-nexus-hp: 30
 
 # The percentage of damage, when each of which is reached,
-# the team will receive a notification. For example, 20 — notify at 20%, 40%, 60%, 80% damage.
+# the team will receive a notification.
+# For example, 20 - notify at 20%, 40%, 60%, 80% damage.
 notify-percent: 20
 
-# Time to block the next damage to the nexus in seconds
+# Time to block the next damage to the Nexus in seconds
 hit-cooldown: 0.5
+
+# If true, the Nexus loses HP equal to the player’s weapon attack value
+# If false, every hit always deals exactly 1 HP
+weapon-damage-enabled: true
+
+# If true, shooting arrows at the Nexus will deal damage
+# If false, arrows have no effect on the Nexus
+arrow-damage-enabled: true
