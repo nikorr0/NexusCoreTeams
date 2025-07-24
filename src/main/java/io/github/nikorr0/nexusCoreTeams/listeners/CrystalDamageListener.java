@@ -94,6 +94,7 @@ public class CrystalDamageListener implements Listener {
             else if (manager.getPlugin().config().getArrowDamageEnabled() &&
                     e.getDamager() instanceof AbstractArrow arrow) {
                 Double damageDouble = arrow.getDamage();
+                arrow.remove();
                 damage = damageDouble == null ? 1 : Math.toIntExact(Math.round(damageDouble));
             }
 
