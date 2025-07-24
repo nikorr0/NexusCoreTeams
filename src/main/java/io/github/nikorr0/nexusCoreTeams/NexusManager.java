@@ -23,42 +23,45 @@ public class NexusManager {
     private final File dataFile;
     private final FileConfiguration dataCfg;
     private final NamespacedKey TAG_NEXUS;
-    private int notifyPercent;
-    private double hitCooldownMs;
 
     public NexusManager(NexusCoreTeams plugin) {
         this.plugin = plugin;
-        this.notifyPercent = plugin.getConfig().getInt("notify-percent", 20);
         this.TAG_NEXUS = new NamespacedKey(plugin, "nexus_team");
-        this.hitCooldownMs = plugin.getConfig().getDouble("hit-cooldown", 0.5) * 1000L;
 
         dataFile = new File(plugin.getDataFolder(), "nexus.yml");
         dataCfg = YamlConfiguration.loadConfiguration(dataFile);
-
-        refreshConfig();
         load();
     }
 
-    // API for another classes
+    /**
+      Removes all Ender Crystals located within a 5x5 square
+      centred on the stored Nexus position (+- 2 blocks on X/Z, +- 3 blocks on Y).
+      Intended for safe clean-up after shutdown or /reload:
+      every crystal that could visually overlap the Nexus pedestal is purged.
+     */
     public void despawnCrystals() {
+
         for (TeamData td : teams.values()) {
-            UUID id = td.getCrystalUuid();
-            if (id == null) continue;
 
-            Entity e = Bukkit.getEntity(id);
-            if (e instanceof EnderCrystal) {
-                e.remove(); // physically removing end crystal from the world
+            Location nexusLoc = td.getNexusLocation();
+            if (nexusLoc == null) continue;
+
+            World world = nexusLoc.getWorld();
+
+            // Loading the chunk so that crystal is guaranteed to appear in the pool
+            int cx = nexusLoc.getBlockX() >> 4;
+            int cz = nexusLoc.getBlockZ() >> 4;
+            if (!world.isChunkLoaded(cx, cz)) {
+                world.loadChunk(cx, cz, false);
             }
-            // Do NOT change td.setCrystalUuid(null);
-            // – keep UUID, so that load() can check
-            // whether an entity exists and, if necessary, create a new one.
-        }
-    }
 
-    public void refreshConfig() {
-        FileConfiguration cfg = plugin.getConfig();
-        this.notifyPercent   = cfg.getInt("notify-percent", 20);
-        this.hitCooldownMs   = cfg.getDouble("hit-cooldown", 0.5) * 1000L;
+            double radius = 2.0;   // horizontal +- 2 block
+            double yRange = 3.0;   // vertical +- 3 block
+
+            world.getNearbyEntities(nexusLoc, radius, yRange, radius).stream()
+                    .filter(ent -> ent instanceof EnderCrystal)
+                    .forEach(Entity::remove);
+        }
     }
 
     public TeamData getTeamData(String team) { return teams.get(team); }
@@ -84,7 +87,7 @@ public class NexusManager {
         if (td == null || !td.isAlive()) return;
 
         long now = System.currentTimeMillis();
-        if (now - td.getLastHitMs() < hitCooldownMs) {
+        if (now - td.getLastHitMs() < plugin.config().getHitCooldownSeconds()) {
             return; // cooldown is active — we ignore the strike
         }
         td.setLastHitMs(now);
@@ -99,6 +102,7 @@ public class NexusManager {
         int afterPct  = newHp  * 100 / maxHp;
 
         // Run through the threshold levels: 100–notifyPct, 100–2*notifyPct, ... > 0
+        int notifyPercent = plugin.config().getNotifyPercent();
         for (int i = 1; i * notifyPercent < 100; i++) {
             int threshold = 100 - i * notifyPercent;
             if (beforePct > threshold && afterPct <= threshold) {
@@ -128,7 +132,7 @@ public class NexusManager {
             ChatColor cc  = TeamColors.get(team);
 
             for (Player player : Bukkit.getOnlinePlayers()) {
-                player.sendMessage("§cThe " + cc + team + " §cteam Nexus has been destroyed!");
+                player.sendMessage("§cThe " + cc + team + " §cteam's Nexus has been destroyed!");
             }
 
         } else {
@@ -178,79 +182,75 @@ public class NexusManager {
     private void load() {
         if (!plugin.isActive() || !dataFile.exists()) return;
 
-        despawnCrystals();
+        Bukkit.getScheduler().runTaskLater(plugin, () -> {
+            despawnCrystals();
 
-        for (String team : dataCfg.getKeys(false)) {
-            World world = Bukkit.getWorld(dataCfg.getString(team + ".world"));
-            if (world == null) continue;
+            for (String team : dataCfg.getKeys(false)) {
+                World world = Bukkit.getWorld(dataCfg.getString(team + ".world"));
+                if (world == null) continue;
 
-            Location base = new Location(
-                    world,
-                    dataCfg.getDouble(team + ".x"),
-                    dataCfg.getDouble(team + ".y"),
-                    dataCfg.getDouble(team + ".z"));
-            int hp        = dataCfg.getInt(team + ".hp");
-            boolean alive = dataCfg.getBoolean(team + ".alive", true);
-            UUID crystalUUID = dataCfg.contains(team + ".uuid") ? UUID.fromString(dataCfg.getString(team + ".uuid")) : null;
+                Location base = new Location(
+                        world,
+                        dataCfg.getDouble(team + ".x"),
+                        dataCfg.getDouble(team + ".y"),
+                        dataCfg.getDouble(team + ".z"));
+                int hp = dataCfg.getInt(team + ".hp");
+                boolean alive = dataCfg.getBoolean(team + ".alive", true);
+                UUID crystalUUID = dataCfg.contains(team + ".uuid") ? UUID.fromString(dataCfg.getString(team + ".uuid")) : null;
 
-            EnderCrystal crystal = null;
+                EnderCrystal crystal = null;
 
-            // If there is a UUID in nexus.yml, search for crystal using it
-            if (crystalUUID != null) {
-                Entity ent = Bukkit.getEntity(crystalUUID);
-                if (ent instanceof EnderCrystal) {
-                    crystal = (EnderCrystal) ent;
-                }
-            }
-
-            // If it haven't found crystal by UUID, create a new one
-            if (alive) {
-                if (crystal == null) {
-                    Location spawnLoc = base.clone();
-                    // Loading the chunk so that crystal is guaranteed to appear in the pool
-                    int cx = spawnLoc.getBlockX() >> 4;
-                    int cz = spawnLoc.getBlockZ() >> 4;
-                    if (!world.isChunkLoaded(cx, cz)) {
-                        world.loadChunk(cx, cz, true);
+                // If there is a UUID in nexus.yml, search for crystal using it
+                if (crystalUUID != null) {
+                    Entity ent = Bukkit.getEntity(crystalUUID);
+                    if (ent instanceof EnderCrystal) {
+                        crystal = (EnderCrystal) ent;
                     }
-                    // Spawning new crystal
-                    crystal = spawnLoc.getWorld().spawn(
-                            base.clone(),
-                            EnderCrystal.class,
-                            e -> {
-                                e.setShowingBottom(false);
-                                e.setInvulnerable(false);
-                            }
-                    );
-                    crystalUUID = crystal.getUniqueId(); // updating the UUID for future reference
                 }
 
-                // Setting up the crystal (name, color, glow)
-                crystal.getPersistentDataContainer()
-                        .set(TAG_NEXUS, PersistentDataType.STRING, team);
+                // If it haven't found crystal by UUID, create a new one
+                if (alive) {
+                    if (crystal == null) {
+                        Location spawnLoc = base.clone();
+                        // Spawning new crystal
+                        crystal = spawnLoc.getWorld().spawn(
+                                base.clone(),
+                                EnderCrystal.class,
+                                e -> {
+                                    e.setShowingBottom(false);
+                                    e.setInvulnerable(false);
+                                }
+                        );
+                        crystalUUID = crystal.getUniqueId(); // updating the UUID for future reference
+                    }
 
-                ChatColor glowCol = TeamColors.get(team);
+                    // Setting up the crystal (name, color, glow)
+                    crystal.getPersistentDataContainer()
+                            .set(TAG_NEXUS, PersistentDataType.STRING, team);
 
-                crystal.setCustomName(glowCol + team + " Nexus");
-                crystal.setCustomNameVisible(true);
-                crystal.setGlowing(true);
+                    ChatColor glowCol = TeamColors.get(team);
 
-                org.bukkit.scoreboard.Team glow = Bukkit.getScoreboardManager()
-                        .getMainScoreboard()
-                        .getTeam("NEXUS_" + team);
-                if (glow == null)
-                    glow = Bukkit.getScoreboardManager()
+                    crystal.setCustomName(glowCol + team + " Nexus");
+                    crystal.setCustomNameVisible(true);
+                    crystal.setGlowing(true);
+
+                    org.bukkit.scoreboard.Team glow = Bukkit.getScoreboardManager()
                             .getMainScoreboard()
-                            .registerNewTeam("NEXUS_" + team);
-                glow.setColor(glowCol);
-                ScoreboardUtil.addEntity(glow, crystal);
+                            .getTeam("NEXUS_" + team);
+                    if (glow == null)
+                        glow = Bukkit.getScoreboardManager()
+                                .getMainScoreboard()
+                                .registerNewTeam("NEXUS_" + team);
+                    glow.setColor(glowCol);
+                    ScoreboardUtil.addEntity(glow, crystal);
 
-                // updating TeamData
-                TeamData td = new TeamData(team, base.clone(), hp, alive, crystalUUID, hp);
-                teams.put(team, td);
+                    // updating TeamData
+                    TeamData td = new TeamData(team, base.clone(), hp, alive, crystalUUID, hp);
+                    teams.put(team, td);
+                }
             }
-        }
-        saveAll();
+            saveAll();
+        }, 150L);
     }
 
     public void saveAll() {
@@ -325,6 +325,4 @@ public class NexusManager {
     }
 
     public Map<String, TeamData> getTeamDataMap() { return teams; }
-    public double getHitCooldownMs() { return hitCooldownMs; }
-
 }
