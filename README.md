@@ -28,6 +28,9 @@ After a hit the crystal becomes invulnerable for *x* seconds (configured via `hi
 * **Explosive immunity**<br>
 TNT, creeper and other block/entity explosions do not harm the Nexus.
 
+* **Explosion on destruction**<br>
+The Nexus creates a small explosion when a player destroys it.
+
 * **HUD**<br>
 The tab-list header shows the current HP of all live Nexuses.
 
