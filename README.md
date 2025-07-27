@@ -1,6 +1,8 @@
 # NexusCoreTeams
 **NexusCoreTeams** is a plugin for the Paper/Purpur/Spigot/Bukkit servers (Minecraft Java Edition 1.17 - 1.21.*).  
 
+[![Available on Modrinth](https://cdn.jsdelivr.net/npm/@intergrav/devins-badges@3/assets/cozy/available/modrinth_vector.svg)](https://modrinth.com/plugin/nexuscoreteams)
+
 Each scoreboard team protects one End Crystal - their **Nexus**. When the crystal is destroyed, further respawns for that team occur in spectator mode. When all team members are spectators the team is declared eliminated.
 
 Using this plugin, you can create popular team‑based minigames such as "Destroy the Core", "Annihilation", "Mega Walls", "Bed Wars", and more.
